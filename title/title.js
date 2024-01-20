@@ -15,14 +15,13 @@ const crawler = async () => {
     try{
         const result = []; // 긁어온 정보를 담는 곳.
         const browser = await puppeteer.launch({ headless: false }) // 시작한다고 보면됨. headless: false <- 배포시엔 true
-        const page = await browser.newPage() // 페이지 켜짐.
-        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-        for (const [i, r] of records.entries()) {
+    await Promise.all(records.map(async (r, i) => { // 10개의 페이지를 한번에 가져오기에 Promise.all
+        try{
+            const page = await browser.newPage() // 페이지 켜짐.
             await page.goto(r[1] , { // r[1]은 링크
                 waitUntil: 'load', // 긁어오는 시간
                 timeout: 0 // 타임아웃 설정 해제
             })
-            console.log(await page.evaluate('navigator.userAgent'))
             const text = await page.evaluate(() => { // evaluate 는 어디에서 무슨 정보를 긁어 올건지 결정함 ?
                 const score = document.querySelector('#contentArea > div.content.article_wrap > div.col-left > div > div.headline > h1') // 여기서
                 // const score2 = document.querySelector('#contentArea > div.content.article_wrap > div.col-left > div > div.headline > h1')
@@ -37,10 +36,12 @@ const crawler = async () => {
                 console.log(r[0], "tag", text)
                 result[i] = { tag: r[0], url: r[1], text: text }; // 여기에 넣는다.
             }
-            await page.waitForTimeout(3000)
                 // result.score, result.score2
-                await page.close() 
-    }
+                await page.close()
+        } catch(err) {
+            console.error(err)
+        } 
+    }))
     await browser.close()
     const str = JSON.stringify(result) // 문자열로 반환
     fs.writeFileSync('csv/result.csv', str ) // 이후에 정보 담기 <---------
@@ -50,29 +51,3 @@ const crawler = async () => {
 }
 
 crawler()
-
-// const crawler = async () => {
-//     const browser = await puppeteer.launch({ headless: false })
-//     const [page, page2, page3] = await Promise.all([
-//         browser.newPage(),
-//         browser.newPage(),
-//         browser.newPage()
-//     ])
-//     await Promise.all([
-//         page.goto('https://www.google.com/'),
-//         page2.goto('https://www.google.com/'),
-//         page3.goto('https://www.google.com/')
-//     ])
-//     console.log('working')
-//     await Promise.all([
-//         page.waitForTimeout(3000),
-//         page2.waitForTimeout(4000),
-//         page3.waitForTimeout(5000)
-//     ])
-//     await page.close()
-//     await page2.close()
-//     await page3.close()
-//     await browser.close()
-// }
-
-// crawler()
