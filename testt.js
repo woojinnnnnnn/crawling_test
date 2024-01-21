@@ -39,8 +39,8 @@ const crawler = async () => {
             }
             await page.waitForTimeout(3000)
                 // result.score, result.score2
-                await page.close() 
     }
+    await page.close() 
     await browser.close()
     const str = JSON.stringify(result) // 문자열로 반환
     fs.writeFileSync('csv/result.csv', str ) // 이후에 정보 담기 <---------
