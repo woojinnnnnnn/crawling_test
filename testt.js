@@ -1,78 +1,77 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
 const parse = require("csv-parse/lib/sync");
-const stringify  = require("csv-stringify/sync");
+const stringify = require("csv-stringify/sync");
 const fs = require("fs");
 const puppeteer = require("puppeteer");
 
-const csv = fs.readFileSync("csv/data.csv"); // 파일 안을 읽음 data.csv 여기 안에 주소가 들어있음.
-const records = parse(csv.toString("utf-8")); // 타입지정 ? json?
+const csv = fs.readFileSync("csv/data.csv");
+const records = parse(csv.toString("utf-8"));
 
-// 윗 부분은 필요한 패키지들 불러오기.
+// 이미지 저장 폴더 생성
+fs.readdir('image', (err) => {
+    if (err) {
+        console.log('image 폴더가 없어 생성.')
+        fs.mkdirSync('image')
+    }
+})
 
-// 본격적인 크롤링 시작 함수.
+// 스크린샷 저장 폴더 생성
+fs.readdir('screenshot', (err) => {
+    if (err) {
+        console.log('screenshot 폴더가 없어 생성.')
+        fs.mkdirSync('screenshot')
+    }
+})
+
+const result = []; // 크롤링 결과를 담을 배열
+
 const crawler = async () => {
-    try{
-        const result = []; // 긁어온 정보를 담는 곳.
-        const browser = await puppeteer.launch({ headless: false }) // 시작한다고 보면됨. headless: false <- 배포시엔 true
-        const page = await browser.newPage() // 페이지 켜짐.
-        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    try {
+        const browser = await puppeteer.launch({
+            headless: false,
+            args: ['--window-size=1496,967']
+        });
+        const page = await browser.newPage();
+        await page.setViewport({
+            width: 1496,
+            height: 967,
+        })
+        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         for (const [i, r] of records.entries()) {
-            await page.goto(r[1] , { // r[1]은 링크
-                waitUntil: 'load', // 긁어오는 시간
-                timeout: 0 // 타임아웃 설정 해제
-            })
-            console.log(await page.evaluate('navigator.userAgent'))
-            const text = await page.evaluate(() => { // evaluate 는 어디에서 무슨 정보를 긁어 올건지 결정함 ?
-                const score = document.querySelector('#contentArea > div.content.article_wrap > div.col-left > div > div.headline > h1') // 여기서
-                // const score2 = document.querySelector('#contentArea > div.content.article_wrap > div.col-left > div > div.headline > h1')
-                if(score) { // 정보가 있다면.
-                    return {
-                        score: score.textContent, // 긁어오고
-                        // score2: score2.textContent
-                    }
-                }
-            })
-            if (text) { // 긁어온 값을 text
-                console.log(r[0], "tag", text)
-                result[i] = { tag: r[0], url: r[1], text: text }; // 여기에 넣는다.
+            await page.goto(r[1], {
+                waitUntil: 'load',
+                timeout: 0
+            });
+            const contentSelector = '#contentArea > div.content.article_wrap.mt100 > div.col-left > div > div.article';
+            const pageInfo = await page.evaluate((contentSelector) => {
+                const titleEl = document.querySelector('#contentArea > div.content.article_wrap > div.col-left > div > div.headline > h1');
+                const contentEl = document.querySelector(contentSelector);
+                const imgEl = document.querySelector('#contentArea > div.content.article_wrap > div.col-left > div > div.article > div:nth-child(1) > div > a > span > img');
+                return {
+                    title: titleEl ? titleEl.textContent : '',
+                    content: contentEl ? contentEl.textContent : '',
+                    img: imgEl ? imgEl.src : '',
+                };
+            }, contentSelector);
+            // 결과를 전역 배열에 추가
+            result.push({ tag: r[0], url: r[1], text: pageInfo.title });
+            result.push({ tag: r[0], text: pageInfo.content });
+            if (pageInfo.img) {
+                const imgResult = await axios.get(pageInfo.img, {
+                    responseType: 'arraybuffer',
+                });
+                fs.writeFileSync(`image/${r[0]}.jpg`, imgResult.data);
             }
-            await page.waitForTimeout(3000)
-                // result.score, result.score2
+        }
+        await page.close();
+        await browser.close();
+
+        const str = JSON.stringify(result, null, 2);
+        fs.writeFileSync('csv/result.csv', str);
+    } catch (err) {
+        console.error(err);
     }
-    await page.close() 
-    await browser.close()
-    const str = JSON.stringify(result) // 문자열로 반환
-    fs.writeFileSync('csv/result.csv', str ) // 이후에 정보 담기 <---------
-    } catch(err) {
-        console.error(err)
-    }
-}
+};
 
-crawler()
-
-// const crawler = async () => {
-//     const browser = await puppeteer.launch({ headless: false })
-//     const [page, page2, page3] = await Promise.all([
-//         browser.newPage(),
-//         browser.newPage(),
-//         browser.newPage()
-//     ])
-//     await Promise.all([
-//         page.goto('https://www.google.com/'),
-//         page2.goto('https://www.google.com/'),
-//         page3.goto('https://www.google.com/')
-//     ])
-//     console.log('working')
-//     await Promise.all([
-//         page.waitForTimeout(3000),
-//         page2.waitForTimeout(4000),
-//         page3.waitForTimeout(5000)
-//     ])
-//     await page.close()
-//     await page2.close()
-//     await page3.close()
-//     await browser.close()
-// }
-
-// crawler()
+crawler();

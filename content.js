@@ -14,16 +14,16 @@ const crawler = async () => {
     try {
     const result = []
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
     })
     const page = await browser.newPage()
     await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-
     for ( const [i, r] of records.entries()) {
         await page.goto(r[1], {
             waitUntil: 'load',
             timeout: 0
         })
+        await page.waitForSelector('#contentArea > div.content.article_wrap.mt100 > div.col-left > div > div.article')
         const pageInfo = await page.evaluate(() => {
             const contentEl = document.querySelector('#contentArea > div.content.article_wrap.mt100 > div.col-left > div > div.article')
             let content = ''
@@ -40,7 +40,6 @@ const crawler = async () => {
     }
     await page.close()
     await browser.close()
-    
     const str = JSON.stringify(result, null, 2)
     fs.writeFileSync('csv/result.csv', str)
 } catch(err) {
