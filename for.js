@@ -8,61 +8,100 @@ const puppeteer = require("puppeteer");
 const csv = fs.readFileSync("csv/data.csv");
 const records = parse(csv.toString("utf-8"));
 
-// 이미지 저장 폴더 생성
 fs.readdir('image', (err) => {
     if (err) {
-        console.log('image 폴더가 없어 생성.')
-        fs.mkdirSync('image')
+        console.log('image 폴더가 없어 생성.');
+        fs.mkdirSync('image');
     }
-})
+});
 
-// 수정된 부분: 크롤링 결과를 담을 배열을 함수 외부에서 선언
-const result = []; // 크롤링 결과를 담을 배열
+const resultArray = [];
 
 const crawler = async () => {
     try {
         const browser = await puppeteer.launch({
             headless: false,
-            args: ['--window-size=1496,967']
         });
         const page = await browser.newPage();
-        await page.setViewport({
-            width: 1496,
-            height: 967,
-        })
+
         await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+        await page.goto('https://m.sedaily.com/');
+        await page.evaluate(() => {
+            window.scrollTo(0, window.document.body.scrollHeight);
+        });
+
         for (const [i, r] of records.entries()) {
-            await page.goto(r[1], {
-                waitUntil: 'load',
-                timeout: 0
+            await page.goto(r[1]);
+            await page.waitForTimeout(5000);
+            await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+            await page.waitForTimeout(2000);
+
+            await page.waitForSelector('#footer > div.ft_sitemap > ul');
+            await page.click('#footer > div.ft_sitemap > ul > li:nth-child(4) > a');
+            await page.waitForSelector('#newsList > li:nth-child(1) > div > div > div.report_tit > a');
+            await page.click('#newsList > li:nth-child(1) > div > div > div.report_tit > a');
+            // 디비 연동 방법 보고 있습니다 !!
+            await page.waitForTimeout(8000);
+
+            await page.evaluate(() => {
+                window.scrollTo(0, window.document.body.scrollHeight);
             });
             await page.waitForSelector('#contentArea > div.content.article_wrap.mt100 > div.col-left > div > div.article');
-            const pageInfo = await page.evaluate(() => {
-                try {
-                    const contentEl = document.querySelector('#contentArea > div.content.article_wrap.mt100 > div.col-left > div > div.article');
-                    let text = '';
-                    if (contentEl) {
-                        text = contentEl.textContent;
-                    }
-                    return { text };
-                } catch (error) {
-                    console.error(error);
-                    return { error: error.message };  // 에러 메시지를 반환하도록 수정
+
+            const result = await page.evaluate(() => {
+                const titleEl = document.querySelector('#contentArea > div.content.article_wrap > div.col-left > div > div.headline > h1');
+                let title = '';
+                if (titleEl) {
+                    title = titleEl.textContent;
                 }
+                const contentEl = document.querySelector('#contentArea > div.content.article_wrap.mt100 > div.col-left > div > div.article');
+                let content = '';
+                if (contentEl) {
+                    content = contentEl.textContent;
+                }
+                const dateEl = document.querySelector('#contentArea > div.content.article_wrap > div.col-left > div > div.headline > div.article_info > span:nth-child(1)');
+                let date = '';
+                if (dateEl) {
+                    date = dateEl.textContent;
+                }
+                const imgEl = document.querySelector('#contentArea > div.content.article_wrap > div.col-left > div > div.article > div:nth-child(1) > div > a > span > img');
+                let img = '';
+                if (imgEl) {
+                    img = imgEl.src;
+                }
+                return { title, content, date, img };
             });
-            console.log('Page Info:', pageInfo);
-            if (pageInfo.text) {
-                console.log(r[0], "<-태그", pageInfo.text);
-                result.push({ tag: r[0], text: pageInfo.text });
+
+            if (result.title) {
+                console.log(r[0], "제목", result.title);
+                resultArray.push({ tag: r[0], url: r[1], text: result.title });
+            }
+
+            if (result.content) {
+                console.log(r[0], "내용", result.content);
+                resultArray.push({ tag: r[0], content: result.content });
+            }
+
+            if (result.date) {
+                console.log(r[0], "날짜", result.date);
+                resultArray.push({ tag: r[0], date: result.date });
+            }
+
+            if (result.img) {
+                const imgResult = await axios.get(result.img, { responseType: 'arraybuffer' });
+                fs.writeFileSync(`image/${r[0]}.jpg`, imgResult.data);
             }
         }
+
         await page.close();
         await browser.close();
-        const str = JSON.stringify(result, null, 2);
-        fs.writeFileSync('csv/result.csv', str);
+
+        const str = JSON.stringify(resultArray, null, 2);
+        fs.writeFileSync('csv/result.csv', str);  // Fix the typo here
     } catch (err) {
         console.error(err);
     }
-};
+}
 
 crawler();

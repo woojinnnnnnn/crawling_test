@@ -23,15 +23,15 @@ const crawler = async () => { // 크롤링 시작 함수.
     try{
         const browser = await puppeteer.launch({
             headless: false, // headless :true 로 배포 해야함.
-            args: ['--window-size=1496,967'] // 맥북 기준 켜지는 사이즈 설정.
+            // args: ['--window-size=1496,967'] // 맥북 기준 켜지는 사이즈 설정.
         }) 
         const page = await browser.newPage()  // 브라우저를 열고.
-        await page.setViewport({
-            width: 1496,
-            height: 967,
-        })// 사용자를 밑 부분 처럼 숨긴다.
-        // await page.waitForNavigation()
-        // await page.waitForTimeout(5000);
+        // await page.setViewport({
+        //     width: 1496,
+        //     height: 967,
+        // })// 사용자를 밑 부분 처럼 숨긴다.
+        await page.waitForNavigation()
+        await page.waitForTimeout(5000);
         await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
 
         for (const [i, r] of records.entries()) {
@@ -39,12 +39,9 @@ const crawler = async () => { // 크롤링 시작 함수.
                 waitUntil: 'load', 
                 timeout: 0 
             })
-            // await page.click('#footer > div.ft_sitemap > ul > li:nth-child(4) > a')
             await page.evaluate(() => {
                 window.scrollTo(0, window.document.body.scrollHeight);
-                // await page.waitForSelector()
             });
-            // await page.
             await page.waitForSelector(
                 '.article',
                 {visible:true, timeout: 30000}

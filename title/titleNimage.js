@@ -8,7 +8,7 @@ const puppeteer = require("puppeteer");
 const csv = fs.readFileSync("csv/data.csv"); // 파일 안을 읽음 data.csv 여기 안에 주소가 들어있음.
 const records = parse(csv.toString("utf-8")); // 타입지정 ? json?
 
-// 윗 부분은 필요한 패키지들 불러오기.
+// 윗 부분은 필요한 패키지들 불러오기. 
 
 fs.readdir('image', (err) => {
     if(err) {
