@@ -5,7 +5,7 @@ const stringify = require("csv-stringify/sync");
 const fs = require("fs");
 const puppeteer = require("puppeteer");
 
-const csv = fs.readFileSync("csv/data.csv");
+const csv = fs.readFileSync("csv/culture.csv");
 const records = parse(csv.toString("utf-8"));
 
 fs.readdir('image', (err) => {
@@ -17,7 +17,7 @@ fs.readdir('image', (err) => {
 
 const resultArray = [];
 
-const crawler = async () => {
+const Culturecrawler = async () => {
     try {
         const browser = await puppeteer.launch({
             headless: false,
@@ -36,12 +36,11 @@ const crawler = async () => {
             await page.waitForTimeout(5000);
             await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
             await page.waitForTimeout(2000);
-
             await page.waitForSelector('#footer > div.ft_sitemap > ul');
-            await page.click('#footer > div.ft_sitemap > ul > li:nth-child(4) > a');
+            await page.click('#footer > div.ft_sitemap > ul > li:nth-child(12) > a');
             await page.waitForSelector('#newsList > li:nth-child(1) > div > div > div.report_tit > a');
             await page.click('#newsList > li:nth-child(1) > div > div > div.report_tit > a');
-            // 디비 연동 방법 보고 있습니다 !!
+            
             await page.waitForTimeout(8000);
 
             await page.evaluate(() => {
@@ -98,10 +97,13 @@ const crawler = async () => {
         await browser.close();
 
         const str = JSON.stringify(resultArray, null, 2);
-        fs.writeFileSync('csv/result.csv', str);  // Fix the typo here
+        fs.writeFileSync('csv/cultureresult.csv', str);  // Fix the typo here
     } catch (err) {
         console.error(err);
     }
 }
 
-crawler();
+Culturecrawler();
+
+
+module.exports = { Culturecrawler }
